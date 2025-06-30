@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ship Stability Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .simulation-panel {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .control-panel {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .ship-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+            border-bottom: 2px solid #3498db;
+        }
+        .ship {
+            position: absolute;
+            width: 200px;
+            height: 80px;
+            background-color: #3498db;
+            left: 50%;
+            transform-origin: center bottom;
+            transform: translateX(-50%);
+            transition: transform 0.5s ease;
+        }
+        .waterline {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(0,0,0,0.3);
+            bottom: 40px;
+        }
+        .kg-indicator {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background-color: red;
+            left: 0;
+        }
+        .port-label, .starboard-label {
+            position: absolute;
+            top: 10px;
+            font-weight: bold;
+        }
+        .port-label {
+            left: 20%;
+            color: green;
+        }
+        .starboard-label {
+            right: 20%;
+            color: green;
+        }
+        .heel-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        .item {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+        }
+        .item:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ship Stability Simulator</h1>
+    
+    <div class="container">
+        <div class="simulation-panel">
+            <h2>Ship Visualization</h2>
+            <div class="ship-container">
+                <div class="port-label">PORT</div>
+                <div class="starboard-label">STARBOARD</div>
+                <div class="ship" id="ship">
+                    <div class="waterline"></div>
+                </div>
+                <div class="heel-indicator" id="heel-indicator">Heel: 0°</div>
+            </div>
+            <div class="stats">
+                <p>KG: <span id="kg-value">0</span> m (from keel)</p>
+                <p>Heel Angle: <span id="heel-value">0</span>°</p>
+                <p>Total Weight: <span id="weight-value">0</span> tons</p>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h2>Controls</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="item-weight">Item Weight (tons)</label>
+                    <input type="number" id="item-weight" min="1" value="10">
+                </div>
+                <div class="control-group">
+                    <label for="item-height">Height from Keel (m)</label>
+                    <input type="number" id="item-height" min="0" value="5">
+                </div>
+                <div class="control-group">
+                    <label for="item-position">Position (Port/Starboard)</label>
+                    <select id="item-position">
+                        <option value="0">Centerline</option>
+                        <option value="-1">Port</option>
+                        <option value="1">Starboard</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="distance-from-center">Distance from Center (m)</label>
+                    <input type="number" id="distance-from-center" min="0" value="2">
+                </div>
+            </div>
+            <button id="add-item">Add Item</button>
+            <button id="reset">Reset Simulation</button>
+            
+            <div class="control-group">
+                <h3>Ship Parameters</h3>
+                <label for="ship-weight">Ship Lightweight (tons)</label>
+                <input type="number" id="ship-weight" min="1" value="5000">
+                <label for="ship-kg">Initial KG (m)</label>
+                <input type="number" id="ship-kg" min="1" value="8">
+                <label for="ship-bm">BM (metacentric radius, m)</label>
+                <input type="number" id="ship-bm" min="1" value="4">
+                <label for="ship-width">Ship Width (m)</label>
+                <input type="number" id="ship-width" min="1" value="30">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ship state
+        const shipState = {
+            items: [],
+            shipWeight: 5000,
+            shipKG: 8,
+            shipBM: 4,
+            shipWidth: 30,
+            totalWeight: 5000,
+            totalMoment: 5000 * 8,
+            totalHeelingMoment: 0
+        };
+
+        // DOM elements
+        const shipEl = document.getElementById('ship');
+        const heelIndicatorEl = document.getElementById('heel-indicator');
+        const kgValueEl = document.getElementById('kg-value');
+        const heelValueEl = document.getElementById('heel-value');
+        const weightValueEl = document.getElementById('weight-value');
+        const addItemBtn = document.getElementById('add-item');
+        const resetBtn = document.getElementById('reset');
+        const shipContainerEl = document.querySelector('.ship-container');
+
+        // Initialize
+        function init() {
+            updateShipParameters();
+            updateShipVisualization();
+            
+            addItemBtn.addEventListener('click', addItem);
+            resetBtn.addEventListener('click', resetSimulation);
+        }
+
+        // Update ship parameters from inputs
+        function updateShipParameters() {
+            shipState.shipWeight = parseFloat(document.getElementById('ship-weight').value);
+            shipState.shipKG = parseFloat(document.getElementById('ship-kg').value);
+            shipState.shipBM = parseFloat(document.getElementById('ship-bm').value);
+            shipState.shipWidth = parseFloat(document.getElementById('ship-width').value);
+            
+            // Reset totals
+            shipState.totalWeight = shipState.shipWeight;
+            shipState.totalMoment = shipState.shipWeight * shipState.shipKG;
+            shipState.totalHeelingMoment = 0;
+            shipState.items = [];
+            
+            // Clear all items from visualization
+            document.querySelectorAll('.item').forEach(el => el.remove());
+            
+            updateShipVisualization();
+        }
+
+        // Add item to ship
+        function addItem() {
+            const weight = parseFloat(document.getElementById('item-weight').value);
+            const height = parseFloat(document.getElementById('item-height').value);
+            const position = parseInt(document.getElementById('item-position').value);
+            const distance = parseFloat(document.getElementById('distance-from-center').value);
+            
+            // Add to state
+            const item = { weight, height, position, distance };
+            shipState.items.push(item);
+            
+            // Update totals
+            shipState.totalWeight += weight;
+            shipState.totalMoment += weight * height;
+            shipState.totalHeelingMoment += weight * distance * position;
+            
+            // Add to visualization
+            addItemVisualization(item);
+            
+            updateShipVisualization();
+        }
+
+        // Add item visualization
+        function addItemVisualization(item) {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'item';
+            itemEl.title = `Weight: ${item.weight} tons\nHeight: ${item.height}m\nPosition: ${item.position > 0 ? 'Starboard' : item.position < 0 ? 'Port' : 'Center'}`;
+            
+            // Position in ship container (simplified)
+            const containerWidth = shipContainerEl.offsetWidth;
+            const containerHeight = shipContainerEl.offsetHeight;
+            
+            // Center is at 50%, height is from bottom (keel)
+            const left = 50 + (item.position * item.distance * 100 / shipState.shipWidth);
+            const top = 100 - (item.height * 100 / (shipState.shipKG * 2)); // Scale to fit visualization
+            
+            itemEl.style.left = `${left}%`;
+            itemEl.style.top = `${top}%`;
+            
+            // Size based on weight
+            const size = Math.max(10, Math.min(30, item.weight / 2));
+            itemEl.style.width = `${size}px`;
+            itemEl.style.height = `${size}px`;
+            
+            shipContainerEl.appendChild(itemEl);
+            
+            // Add click to remove
+            itemEl.addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeItem(item, itemEl);
+            });
+        }
+
+        // Remove item from ship
+        function removeItem(item, itemEl) {
+            const index = shipState.items.indexOf(item);
+            if (index > -1) {
+                shipState.items.splice(index, 1);
+                
+                // Update totals
+                shipState.totalWeight -= item.weight;
+                shipState.totalMoment -= item.weight * item.height;
+                shipState.totalHeelingMoment -= item.weight * item.distance * item.position;
+                
+                // Remove from visualization
+                itemEl.remove();
+                
+                updateShipVisualization();
+            }
+        }
+
+        // Update ship visualization
+        function updateShipVisualization() {
+            // Calculate new KG
+            const newKG = shipState.totalMoment / shipState.totalWeight;
+            shipState.currentKG = newKG;
+            
+            // Calculate heel angle (simplified)
+            const GM = shipState.shipBM + (shipState.shipKG - newKG); // BM - KG change
+            const heelAngle = (180/Math.PI) * Math.atan(shipState.totalHeelingMoment / (shipState.totalWeight * GM));
+            
+            // Update display
+            kgValueEl.textContent = newKG.toFixed(2);
+            heelValueEl.textContent = heelAngle.toFixed(2);
+            weightValueEl.textContent = shipState.totalWeight.toFixed(0);
+            
+            // Update ship tilt
+            shipEl.style.transform = `translateX(-50%) rotate(${heelAngle}deg)`;
+            
+            // Update heel indicator
+            heelIndicatorEl.textContent = `Heel: ${heelAngle.toFixed(1)}° ${heelAngle > 0 ? 'to Starboard' : heelAngle < 0 ? 'to Port' : ''}`;
+            
+            // Update KG indicator position
+            const kgIndicator = document.querySelector('.kg-indicator');
+            if (!kgIndicator) {
+                const newIndicator = document.createElement('div');
+                newIndicator.className = 'kg-indicator';
+                shipEl.appendChild(newIndicator);
+            }
+            
+            const kgPosition = 100 - (newKG * 100 / (shipState.shipKG * 2)); // Scale to fit visualization
+            document.querySelector('.kg-indicator').style.bottom = `${kgPosition}%`;
+        }
+
+        // Reset simulation
+        function resetSimulation() {
+            updateShipParameters();
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
