@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ship Stability Simulator</title>
+    <title>Ship KG Simulator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
@@ -18,8 +18,8 @@
             gap: 20px;
         }
         .simulation-panel {
-            flex: 1;
-            min-width: 300px;
+            flex: 2;
+            min-width: 500px;
             background: white;
             padding: 20px;
             border-radius: 8px;
@@ -38,7 +38,7 @@
         }
         .ship-container {
             position: relative;
-            height: 300px;
+            height: 350px;
             margin: 20px 0;
             border-bottom: 2px solid #3498db;
         }
@@ -50,7 +50,7 @@
             left: 50%;
             transform-origin: center bottom;
             transform: translateX(-50%);
-            transition: transform 0.5s ease;
+            transition: transform 0.5s ease, bottom 0.5s ease;
         }
         .waterline {
             position: absolute;
@@ -72,11 +72,11 @@
             font-weight: bold;
         }
         .port-label {
-            left: 5%;  /* Move farther left (was 20%) */
+            left: 5%;
             color: green;
         }
         .starboard-label {
-            right: 5%;  /* Move farther right (was 20%) */
+            right: 5%;
             color: green;
         }
         .heel-indicator {
@@ -85,6 +85,13 @@
             left: 50%;
             transform: translateX(-50%);
             font-weight: bold;
+        }
+        .draft-indicator {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            color: #2c3e50;
         }
         .controls {
             display: grid;
@@ -134,10 +141,37 @@
         .item:hover {
             opacity: 0.8;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .edit-btn, .remove-btn {
+            padding: 5px 10px;
+            margin: 0 2px;
+        }
+        .edit-btn {
+            background-color: #f39c12;
+        }
+        .remove-btn {
+            background-color: #e74c3c;
+        }
     </style>
 </head>
 <body>
-    <h1>Ship Stability Simulator</h1>
+    <h1>Advanced Ship Stability Simulator</h1>
     
     <div class="container">
         <div class="simulation-panel">
@@ -148,13 +182,29 @@
                 <div class="ship" id="ship">
                     <div class="waterline"></div>
                 </div>
+                <div class="draft-indicator" id="draft-indicator">Draft: 0m</div>
                 <div class="heel-indicator" id="heel-indicator">Heel: 0°</div>
             </div>
             <div class="stats">
                 <p>KG: <span id="kg-value">0</span> m (from keel)</p>
                 <p>Heel Angle: <span id="heel-value">0</span>°</p>
                 <p>Total Weight: <span id="weight-value">0</span> tons</p>
+                <p>Draft: <span id="draft-value">0</span> m</p>
             </div>
+            
+            <h3>Cargo Items</h3>
+            <table id="cargo-table">
+                <thead>
+                    <tr>
+                        <th>Weight (t)</th>
+                        <th>Height (m)</th>
+                        <th>Position</th>
+                        <th>Distance (m)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
         
         <div class="control-panel">
@@ -169,7 +219,7 @@
                     <input type="number" id="item-height" min="0" value="5">
                 </div>
                 <div class="control-group">
-                    <label for="item-position">Position (Port/Starboard)</label>
+                    <label for="item-position">Position</label>
                     <select id="item-position">
                         <option value="0">Centerline</option>
                         <option value="-1">Port</option>
@@ -194,6 +244,10 @@
                 <input type="number" id="ship-bm" min="1" value="4">
                 <label for="ship-width">Ship Width (m)</label>
                 <input type="number" id="ship-width" min="1" value="30">
+                <label for="ship-draft-coeff">Draft Coefficient (t/cm)</label>
+                <input type="number" id="ship-draft-coeff" min="0.1" step="0.1" value="25">
+                <label for="initial-draft">Initial Draft (m)</label>
+                <input type="number" id="initial-draft" min="0" step="0.1" value="5">
             </div>
         </div>
     </div>
@@ -206,20 +260,26 @@
             shipKG: 8,
             shipBM: 4,
             shipWidth: 30,
+            draftCoeff: 25, // tons per cm of draft change
+            initialDraft: 5, // meters
             totalWeight: 5000,
             totalMoment: 5000 * 8,
-            totalHeelingMoment: 0
+            totalHeelingMoment: 0,
+            currentDraft: 5
         };
 
         // DOM elements
         const shipEl = document.getElementById('ship');
         const heelIndicatorEl = document.getElementById('heel-indicator');
+        const draftIndicatorEl = document.getElementById('draft-indicator');
         const kgValueEl = document.getElementById('kg-value');
         const heelValueEl = document.getElementById('heel-value');
         const weightValueEl = document.getElementById('weight-value');
+        const draftValueEl = document.getElementById('draft-value');
         const addItemBtn = document.getElementById('add-item');
         const resetBtn = document.getElementById('reset');
         const shipContainerEl = document.querySelector('.ship-container');
+        const cargoTableBody = document.querySelector('#cargo-table tbody');
 
         // Initialize
         function init() {
@@ -236,15 +296,19 @@
             shipState.shipKG = parseFloat(document.getElementById('ship-kg').value);
             shipState.shipBM = parseFloat(document.getElementById('ship-bm').value);
             shipState.shipWidth = parseFloat(document.getElementById('ship-width').value);
+            shipState.draftCoeff = parseFloat(document.getElementById('ship-draft-coeff').value);
+            shipState.initialDraft = parseFloat(document.getElementById('initial-draft').value);
             
             // Reset totals
             shipState.totalWeight = shipState.shipWeight;
             shipState.totalMoment = shipState.shipWeight * shipState.shipKG;
             shipState.totalHeelingMoment = 0;
             shipState.items = [];
+            shipState.currentDraft = shipState.initialDraft;
             
-            // Clear all items from visualization
+            // Clear all items from visualization and table
             document.querySelectorAll('.item').forEach(el => el.remove());
+            cargoTableBody.innerHTML = '';
             
             updateShipVisualization();
         }
@@ -257,27 +321,51 @@
             const distance = parseFloat(document.getElementById('distance-from-center').value);
             
             // Add to state
-            const item = { weight, height, position, distance };
+            const item = { 
+                id: Date.now(), // Unique ID for each item
+                weight, 
+                height, 
+                position, 
+                distance 
+            };
             shipState.items.push(item);
             
             // Update totals
-            shipState.totalWeight += weight;
-            shipState.totalMoment += weight * height;
-            shipState.totalHeelingMoment += weight * distance * position;
+            updateTotals();
             
-            // Add to visualization
+            // Add to visualization and table
             addItemVisualization(item);
+            addItemToTable(item);
             
             updateShipVisualization();
+        }
+
+        // Update all calculated totals
+        function updateTotals() {
+            shipState.totalWeight = shipState.shipWeight;
+            shipState.totalMoment = shipState.shipWeight * shipState.shipKG;
+            shipState.totalHeelingMoment = 0;
+            
+            shipState.items.forEach(item => {
+                shipState.totalWeight += item.weight;
+                shipState.totalMoment += item.weight * item.height;
+                shipState.totalHeelingMoment += item.weight * item.distance * item.position;
+            });
+            
+            // Calculate draft change (simplified)
+            const weightChange = shipState.totalWeight - shipState.shipWeight;
+            const draftChange = (weightChange / (shipState.draftCoeff * 100)); // Convert to meters
+            shipState.currentDraft = shipState.initialDraft + draftChange;
         }
 
         // Add item visualization
         function addItemVisualization(item) {
             const itemEl = document.createElement('div');
             itemEl.className = 'item';
-            itemEl.title = `Weight: ${item.weight} tons\nHeight: ${item.height}m\nPosition: ${item.position > 0 ? 'Starboard' : item.position < 0 ? 'Port' : 'Center'}`;
+            itemEl.dataset.id = item.id;
+            itemEl.title = `Weight: ${item.weight} tons\nHeight: ${item.height}m\nPosition: ${getPositionName(item.position)}`;
             
-            // Position in ship container (simplified)
+            // Position in ship container
             const containerWidth = shipContainerEl.offsetWidth;
             const containerHeight = shipContainerEl.offsetHeight;
             
@@ -298,33 +386,76 @@
             // Add click to remove
             itemEl.addEventListener('click', function(e) {
                 e.stopPropagation();
-                removeItem(item, itemEl);
+                removeItem(item.id);
             });
         }
 
+        // Add item to the cargo table
+        function addItemToTable(item) {
+            const row = document.createElement('tr');
+            row.dataset.id = item.id;
+            
+            row.innerHTML = `
+                <td>${item.weight}</td>
+                <td>${item.height}</td>
+                <td>${getPositionName(item.position)}</td>
+                <td>${item.distance}</td>
+                <td>
+                    <button class="edit-btn" data-id="${item.id}">Edit</button>
+                    <button class="remove-btn" data-id="${item.id}">Remove</button>
+                </td>
+            `;
+            
+            cargoTableBody.appendChild(row);
+            
+            // Add event listeners to buttons
+            row.querySelector('.edit-btn').addEventListener('click', () => editItem(item.id));
+            row.querySelector('.remove-btn').addEventListener('click', () => removeItem(item.id));
+        }
+
+        // Get position name
+        function getPositionName(position) {
+            return position > 0 ? 'Starboard' : position < 0 ? 'Port' : 'Center';
+        }
+
         // Remove item from ship
-        function removeItem(item, itemEl) {
-            const index = shipState.items.indexOf(item);
+        function removeItem(itemId) {
+            const index = shipState.items.findIndex(item => item.id == itemId);
             if (index > -1) {
                 shipState.items.splice(index, 1);
                 
                 // Update totals
-                shipState.totalWeight -= item.weight;
-                shipState.totalMoment -= item.weight * item.height;
-                shipState.totalHeelingMoment -= item.weight * item.distance * item.position;
+                updateTotals();
                 
                 // Remove from visualization
-                itemEl.remove();
+                document.querySelector(`.item[data-id="${itemId}"]`)?.remove();
+                
+                // Remove from table
+                document.querySelector(`#cargo-table tr[data-id="${itemId}"]`)?.remove();
                 
                 updateShipVisualization();
             }
+        }
+
+        // Edit item
+        function editItem(itemId) {
+            const item = shipState.items.find(item => item.id == itemId);
+            if (!item) return;
+            
+            // Fill the form with item data
+            document.getElementById('item-weight').value = item.weight;
+            document.getElementById('item-height').value = item.height;
+            document.getElementById('item-position').value = item.position;
+            document.getElementById('distance-from-center').value = item.distance;
+            
+            // Remove the item (will be re-added with new values)
+            removeItem(itemId);
         }
 
         // Update ship visualization
         function updateShipVisualization() {
             // Calculate new KG
             const newKG = shipState.totalMoment / shipState.totalWeight;
-            shipState.currentKG = newKG;
             
             // Calculate heel angle (simplified)
             const GM = shipState.shipBM + (shipState.shipKG - newKG); // BM - KG change
@@ -334,12 +465,16 @@
             kgValueEl.textContent = newKG.toFixed(2);
             heelValueEl.textContent = heelAngle.toFixed(2);
             weightValueEl.textContent = shipState.totalWeight.toFixed(0);
+            draftValueEl.textContent = shipState.currentDraft.toFixed(2);
             
-            // Update ship tilt
+            // Update ship tilt and draft position
             shipEl.style.transform = `translateX(-50%) rotate(${heelAngle}deg)`;
+            shipEl.style.bottom = `${(shipState.initialDraft - shipState.currentDraft) * 10}px`; // Scale for visualization
             
-            // Update heel indicator
-            heelIndicatorEl.textContent = `Heel: ${heelAngle.toFixed(1)}° ${heelAngle > 0 ? 'to Starboard' : heelAngle < 0 ? 'to Port' : ''}`;
+            // Update indicators
+            heelIndicatorEl.textContent = `Heel: ${Math.abs(heelAngle).toFixed(1)}° ${heelAngle > 0 ? 'to Starboard' : heelAngle < 0 ? 'to Port' : ''}`;
+            draftIndicatorEl.textContent = `Draft: ${shipState.currentDraft.toFixed(2)}m`;
+            draftIndicatorEl.style.bottom = `${(shipState.currentDraft * 10) + 20}px`; // Position draft text
             
             // Update KG indicator position
             const kgIndicator = document.querySelector('.kg-indicator');
