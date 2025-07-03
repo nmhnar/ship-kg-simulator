@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ship KG Simulator</title>
+    <title>Ship List Simulator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -33,38 +33,27 @@
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        h1, h2 {
+        h1, h2, h3 {
             color: #2c3e50;
+            margin-top: 0;
         }
         .ship-container {
             position: relative;
-            height: 350px;
+            height: 400px;
             margin: 20px 0;
             border-bottom: 2px solid #3498db;
         }
-        .ship {
+        .ship-hull {
             position: absolute;
-            width: 200px;
-            height: 80px;
-            background-color: #3498db;
+            width: 300px;
+            height: 150px;
             left: 50%;
+            bottom: 0;
             transform-origin: center bottom;
-            transform: translateX(-50%);
-            transition: transform 0.5s ease, bottom 0.5s ease;
-        }
-        .waterline {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background-color: rgba(0,0,0,0.3);
-            bottom: 40px;
-        }
-        .kg-indicator {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background-color: red;
-            left: 0;
+            transform: translateX(-50%) rotate(0deg);
+            transition: all 0.5s ease;
+            background: #3498db;
+            border: 2px solid #2980b9;
         }
         .port-label, .starboard-label {
             position: absolute;
@@ -72,11 +61,11 @@
             font-weight: bold;
         }
         .port-label {
-            left: 5%;
+            left: 15%;
             color: green;
         }
         .starboard-label {
-            right: 5%;
+            right: 15%;
             color: green;
         }
         .heel-indicator {
@@ -86,17 +75,7 @@
             transform: translateX(-50%);
             font-weight: bold;
         }
-        .draft-indicator {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            font-weight: bold;
-            color: #2c3e50;
-        }
         .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
             margin-bottom: 20px;
         }
         .control-group {
@@ -129,17 +108,34 @@
             background-color: #ecf0f1;
             border-radius: 4px;
         }
-        .item {
+        .point-marker {
             position: absolute;
-            width: 20px;
-            height: 20px;
-            background-color: #e74c3c;
-            border-radius: 50%;
+            font-size: 24px;
             transform: translate(-50%, -50%);
-            cursor: pointer;
+            z-index: 10;
+            line-height: 1;
         }
-        .item:hover {
-            opacity: 0.8;
+        .point-k { color: #f39c12; }
+        .point-m { color: #27ae60; }
+        .point-g { color: #e74c3c; }
+        .point-g-final { color: #9b59b6; }
+        .point-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .reference-line {
+            position: absolute;
+            background-color: rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        .center-line {
+            left: 50%;
+            width: 1px;
+            height: 100%;
+            transform: translateX(-50%);
         }
         table {
             width: 100%;
@@ -158,184 +154,418 @@
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
-        .edit-btn, .remove-btn {
-            padding: 5px 10px;
-            margin: 0 2px;
+        .moment-table th {
+            background-color: #2980b9;
         }
-        .edit-btn {
-            background-color: #f39c12;
+        .positive {
+            color: #27ae60;
         }
-        .remove-btn {
-            background-color: #e74c3c;
+        .negative {
+            color: #e74c3c;
+        }
+        .moment-section {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .calc-steps {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .designer-credit {
+            text-align: center;
+            margin-top: 30px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .cargo-input-table {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .cargo-input-table th {
+            background-color: #2980b9;
+        }
+        .gg1-line {
+            position: absolute;
+            height: 2px;
+            background-color: #9b59b6;
+            z-index: 5;
+            transform-origin: left center;
+        }
+        /* New styles for stability visualization */
+        .stability-triangle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .mgk-line {
+            position: absolute;
+            height: 2px;
+            background-color: #3498db;
+            transform-origin: left center;
+            z-index: 3;
+        }
+        .heel-angle-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+            z-index: 10;
+        }
+        .angle-arc {
+            position: absolute;
+            border: 2px solid #e74c3c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            border-top-color: transparent;
+            border-left-color: transparent;
+            transform-origin: center;
+            z-index: 4;
+        }
+        .gm-line {
+            position: absolute;
+            height: 2px;
+            background-color: #27ae60;
+            border: 1px dashed #27ae60;
+            transform-origin: left center;
+            z-index: 3;
+        }
+        /* Zoom view styles */
+        .zoom-view {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #2c3e50;
+            background-color: rgba(255,255,255,0.9);
+            z-index: 20;
+            overflow: hidden;
+        }
+        .zoom-content {
+            position: absolute;
+            transform-origin: top left;
+        }
+        .zoom-controls {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            z-index: 21;
+        }
+        .zoom-btn {
+            width: 30px;
+            height: 30px;
+            margin: 2px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <h1>Advanced Ship Stability Simulator</h1>
+    <h1>Ship List Simulator</h1>
     
     <div class="container">
         <div class="simulation-panel">
             <h2>Ship Visualization</h2>
             <div class="ship-container">
-                <div class="port-label">PORT</div>
-                <div class="starboard-label">STARBOARD</div>
-                <div class="ship" id="ship">
-                    <div class="waterline"></div>
-                </div>
-                <div class="draft-indicator" id="draft-indicator">Draft: 0m</div>
+                <!-- Reference lines -->
+                <div class="reference-line center-line"></div>
+                
+                <div class="port-label">PORT (+ve)</div>
+                <div class="starboard-label">STARBOARD (-ve)</div>
+                <div class="ship-hull" id="ship-hull"></div>
                 <div class="heel-indicator" id="heel-indicator">Heel: 0°</div>
+                
+                <!-- Zoom view container -->
+                <div class="zoom-view" id="zoom-view">
+                    <div class="zoom-content" id="zoom-content"></div>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoom-in">+</button>
+                        <button class="zoom-btn" id="zoom-out">-</button>
+                    </div>
+                </div>
             </div>
             <div class="stats">
-                <p>KG: <span id="kg-value">0</span> m (from keel)</p>
-                <p>Heel Angle: <span id="heel-value">0</span>°</p>
-                <p>Total Weight: <span id="weight-value">0</span> tons</p>
-                <p>Draft: <span id="draft-value">0</span> m</p>
+                <p>Ship Lightweight: <span id="ship-weight-value">8000</span> tons</p>
+                <p>Initial KG: <span id="initial-kg-value">7.60</span> m</p>
+                <p>Current KG: <span id="kg-value">7.60</span> m</p>
+                <p>KM: <span id="km-value">8.70</span> m</p>
+                <p>GM: <span id="gm-value">1.10</span> m</p>
+                <p>GG₁: <span id="gg1-value">0.00</span> m</p>
+                <p>Heel Angle: <span id="heel-value">0.00</span>°</p>
+                <p>Total Weight: <span id="weight-value">8000</span> tons</p>
             </div>
             
-            <h3>Cargo Items</h3>
-            <table id="cargo-table">
+            <div class="moment-section">
+                <h3>Moments about the Keel</h3>
+                <table class="moment-table">
+                    <thead>
+                        <tr>
+                            <th>Point</th>
+                            <th>Weight (t)</th>
+                            <th>Vertical Lever (m)</th>
+                            <th>Moment (t·m)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vertical-moment-body">
+                        <tr>
+                            <td>Ship</td>
+                            <td>8000.00</td>
+                            <td>7.60</td>
+                            <td class="positive">60800.00</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="3">Total</th>
+                            <th id="total-vertical-moment">60800.00</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div class="moment-section">
+                <h3>Moments about the Centerline</h3>
+                <table class="moment-table">
+                    <thead>
+                        <tr>
+                            <th>Point</th>
+                            <th>Weight (t)</th>
+                            <th>Heeling Lever (m)</th>
+                            <th>Moment (t·m)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="heeling-moment-body">
+                        <!-- Rows will be added dynamically -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="3">Total</th>
+                            <th id="total-heeling-moment">0.00</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <h3>Calculation Steps</h3>
+            <div class="calc-steps" id="calculation-steps">
+                Initial state - No cargo loaded
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h2>Controls</h2>
+            
+            <div class="control-group">
+                <h3>Ship Parameters</h3>
+                <label for="ship-weight">Ship Lightweight (tons)</label>
+                <input type="number" id="ship-weight" min="1" value="8000">
+                <label for="ship-kg">Initial KG (m)</label>
+                <input type="number" id="ship-kg" min="1" step="0.1" value="7.6">
+                <label for="ship-km">KM (m)</label>
+                <input type="number" id="ship-km" min="1" step="0.1" value="8.7">
+            </div>
+            
+            <h3>Cargo Input (Max 10 Items)</h3>
+            <table class="cargo-input-table">
                 <thead>
                     <tr>
                         <th>Weight (t)</th>
                         <th>Height (m)</th>
                         <th>Position</th>
                         <th>Distance (m)</th>
-                        <th>Actions</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="input-rows">
+                    <!-- Rows will be added dynamically -->
+                </tbody>
             </table>
-        </div>
-        
-        <div class="control-panel">
-            <h2>Controls</h2>
-            <div class="controls">
-                <div class="control-group">
-                    <label for="item-weight">Item Weight (tons)</label>
-                    <input type="number" id="item-weight" min="1" value="10">
-                </div>
-                <div class="control-group">
-                    <label for="item-height">Height from Keel (m)</label>
-                    <input type="number" id="item-height" min="0" value="5">
-                </div>
-                <div class="control-group">
-                    <label for="item-position">Position</label>
-                    <select id="item-position">
-                        <option value="0">Centerline</option>
-                        <option value="-1">Port</option>
-                        <option value="1">Starboard</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="distance-from-center">Distance from Center (m)</label>
-                    <input type="number" id="distance-from-center" min="0" value="2">
-                </div>
-            </div>
-            <button id="add-item">Add Item</button>
+            <button id="add-row">Add Row</button>
+            <button id="calculate">Calculate Stability</button>
             <button id="reset">Reset Simulation</button>
-            
-            <div class="control-group">
-                <h3>Ship Parameters</h3>
-                <label for="ship-weight">Ship Lightweight (tons)</label>
-                <input type="number" id="ship-weight" min="1" value="5000">
-                <label for="ship-kg">Initial KG (m)</label>
-                <input type="number" id="ship-kg" min="1" value="8">
-                <label for="ship-bm">BM (metacentric radius, m)</label>
-                <input type="number" id="ship-bm" min="1" value="4">
-                <label for="ship-width">Ship Width (m)</label>
-                <input type="number" id="ship-width" min="1" value="30">
-                <label for="ship-draft-coeff">Draft Coefficient (t/cm)</label>
-                <input type="number" id="ship-draft-coeff" min="0.1" step="0.1" value="25">
-                <label for="initial-draft">Initial Draft (m)</label>
-                <input type="number" id="initial-draft" min="0" step="0.1" value="5">
-            </div>
         </div>
+    </div>
+    
+    <div class="designer-credit">
+        Design By Nik Muhammad Hafidz<br>
+        Jabatan Kejuruteraan Perkapalan PUO
     </div>
 
     <script>
         // Ship state
         const shipState = {
             items: [],
-            shipWeight: 5000,
-            shipKG: 8,
-            shipBM: 4,
-            shipWidth: 30,
-            draftCoeff: 25, // tons per cm of draft change
-            initialDraft: 5, // meters
-            totalWeight: 5000,
-            totalMoment: 5000 * 8,
+            shipWeight: 8000,
+            initialKG: 7.6,
+            KM: 8.7,
+            totalWeight: 8000,
+            totalVerticalMoment: 8000 * 7.6,
             totalHeelingMoment: 0,
-            currentDraft: 5
+            currentKG: 7.6,
+            currentGM: 1.1,
+            GG1: 0,
+            currentHeel: 0,
+            itemCounter: 1,
+            maxItems: 10,
+            scaleFactor: 15, // pixels per meter
+            keelY: 400, // Y-position of keel in pixels
+            centerX: 250, // X-position of centerline in pixels
+            zoomScale: 2 // Zoom level for the zoom view
         };
 
         // DOM elements
-        const shipEl = document.getElementById('ship');
+        const shipHullEl = document.getElementById('ship-hull');
         const heelIndicatorEl = document.getElementById('heel-indicator');
-        const draftIndicatorEl = document.getElementById('draft-indicator');
         const kgValueEl = document.getElementById('kg-value');
+        const initialKgValueEl = document.getElementById('initial-kg-value');
+        const kmValueEl = document.getElementById('km-value');
+        const gmValueEl = document.getElementById('gm-value');
+        const gg1ValueEl = document.getElementById('gg1-value');
         const heelValueEl = document.getElementById('heel-value');
         const weightValueEl = document.getElementById('weight-value');
-        const draftValueEl = document.getElementById('draft-value');
-        const addItemBtn = document.getElementById('add-item');
+        const shipWeightValueEl = document.getElementById('ship-weight-value');
+        const calculateBtn = document.getElementById('calculate');
         const resetBtn = document.getElementById('reset');
+        const addRowBtn = document.getElementById('add-row');
+        const inputRowsEl = document.getElementById('input-rows');
         const shipContainerEl = document.querySelector('.ship-container');
-        const cargoTableBody = document.querySelector('#cargo-table tbody');
+        const verticalMomentBody = document.getElementById('vertical-moment-body');
+        const heelingMomentBody = document.getElementById('heeling-moment-body');
+        const totalVerticalMomentEl = document.getElementById('total-vertical-moment');
+        const totalHeelingMomentEl = document.getElementById('total-heeling-moment');
+        const calcStepsEl = document.getElementById('calculation-steps');
+        const zoomViewEl = document.getElementById('zoom-view');
+        const zoomContentEl = document.getElementById('zoom-content');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
 
         // Initialize
         function init() {
             updateShipParameters();
+            addInputRow(); // Add first empty row
             updateShipVisualization();
             
-            addItemBtn.addEventListener('click', addItem);
+            // Update calculations when ship parameters change
+            document.getElementById('ship-weight').addEventListener('change', updateShipParameters);
+            document.getElementById('ship-kg').addEventListener('change', updateShipParameters);
+            document.getElementById('ship-km').addEventListener('change', updateShipParameters);
+            
+            addRowBtn.addEventListener('click', addInputRow);
+            calculateBtn.addEventListener('click', calculateStability);
             resetBtn.addEventListener('click', resetSimulation);
+            
+            // Zoom controls
+            zoomInBtn.addEventListener('click', () => {
+                shipState.zoomScale *= 1.2;
+                updateZoomView();
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                shipState.zoomScale /= 1.2;
+                updateZoomView();
+            });
+        }
+
+        // Add input row
+        function addInputRow() {
+            if (inputRowsEl.children.length >= shipState.maxItems) return;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="number" class="input-weight" placeholder="Weight (+add/-remove)"></td>
+                <td><input type="number" class="input-height" min="0" placeholder="Height"></td>
+                <td>
+                    <select class="input-position">
+                        <option value="1">Port (+ve)</option>
+                        <option value="-1">Starboard (-ve)</option>
+                    </select>
+                </td>
+                <td><input type="number" class="input-distance" min="0" placeholder="Distance"></td>
+                <td><button class="remove-row-btn">Remove</button></td>
+            `;
+            
+            inputRowsEl.appendChild(row);
+            
+            // Add event listener to remove button
+            row.querySelector('.remove-row-btn').addEventListener('click', function() {
+                row.remove();
+            });
+        }
+
+        // Calculate stability from input rows
+        function calculateStability() {
+            // Clear existing items
+            shipState.items = [];
+            document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
+            verticalMomentBody.innerHTML = '';
+            heelingMomentBody.innerHTML = '';
+            shipState.itemCounter = 1;
+            
+            // Process each input row
+            const rows = inputRowsEl.querySelectorAll('tr');
+            rows.forEach(row => {
+                const weight = parseFloat(row.querySelector('.input-weight').value);
+                const height = parseFloat(row.querySelector('.input-height').value);
+                const position = parseInt(row.querySelector('.input-position').value);
+                const distance = parseFloat(row.querySelector('.input-distance').value);
+                
+                if (!isNaN(weight) && !isNaN(height) && !isNaN(distance)) {
+                    const item = { 
+                        id: Date.now(),
+                        pointNumber: shipState.itemCounter++,
+                        weight, 
+                        height, 
+                        position, 
+                        distance 
+                    };
+                    shipState.items.push(item);
+                }
+            });
+            
+            // Update totals and visualization
+            updateTotals();
+            updateShipVisualization();
         }
 
         // Update ship parameters from inputs
         function updateShipParameters() {
-            shipState.shipWeight = parseFloat(document.getElementById('ship-weight').value);
-            shipState.shipKG = parseFloat(document.getElementById('ship-kg').value);
-            shipState.shipBM = parseFloat(document.getElementById('ship-bm').value);
-            shipState.shipWidth = parseFloat(document.getElementById('ship-width').value);
-            shipState.draftCoeff = parseFloat(document.getElementById('ship-draft-coeff').value);
-            shipState.initialDraft = parseFloat(document.getElementById('initial-draft').value);
+            shipState.shipWeight = parseFloat(document.getElementById('ship-weight').value) || 8000;
+            shipState.initialKG = parseFloat(document.getElementById('ship-kg').value) || 7.6;
+            shipState.KM = parseFloat(document.getElementById('ship-km').value) || 8.7;
             
             // Reset totals
             shipState.totalWeight = shipState.shipWeight;
-            shipState.totalMoment = shipState.shipWeight * shipState.shipKG;
+            shipState.totalVerticalMoment = shipState.shipWeight * shipState.initialKG;
             shipState.totalHeelingMoment = 0;
             shipState.items = [];
-            shipState.currentDraft = shipState.initialDraft;
+            shipState.currentKG = shipState.initialKG;
+            shipState.currentGM = shipState.KM - shipState.initialKG;
+            shipState.GG1 = 0;
+            shipState.currentHeel = 0;
+            shipState.itemCounter = 1;
             
             // Clear all items from visualization and table
-            document.querySelectorAll('.item').forEach(el => el.remove());
-            cargoTableBody.innerHTML = '';
+            document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
+            verticalMomentBody.innerHTML = '';
+            heelingMomentBody.innerHTML = '';
             
-            updateShipVisualization();
-        }
-
-        // Add item to ship
-        function addItem() {
-            const weight = parseFloat(document.getElementById('item-weight').value);
-            const height = parseFloat(document.getElementById('item-height').value);
-            const position = parseInt(document.getElementById('item-position').value);
-            const distance = parseFloat(document.getElementById('distance-from-center').value);
-            
-            // Add to state
-            const item = { 
-                id: Date.now(), // Unique ID for each item
-                weight, 
-                height, 
-                position, 
-                distance 
-            };
-            shipState.items.push(item);
-            
-            // Update totals
-            updateTotals();
-            
-            // Add to visualization and table
-            addItemVisualization(item);
-            addItemToTable(item);
+            // Add ship row to moment tables
+            addMomentRow({
+                pointNumber: "Ship",
+                weight: shipState.shipWeight,
+                height: shipState.initialKG,
+                position: 0,
+                distance: 0
+            }, true);
             
             updateShipVisualization();
         }
@@ -343,154 +573,406 @@
         // Update all calculated totals
         function updateTotals() {
             shipState.totalWeight = shipState.shipWeight;
-            shipState.totalMoment = shipState.shipWeight * shipState.shipKG;
+            shipState.totalVerticalMoment = shipState.shipWeight * shipState.initialKG;
             shipState.totalHeelingMoment = 0;
             
+            // Clear moment tables
+            heelingMomentBody.innerHTML = '';
+            
+            // Process each item
             shipState.items.forEach(item => {
                 shipState.totalWeight += item.weight;
-                shipState.totalMoment += item.weight * item.height;
+                
+                // Add to moment tables
+                addMomentRow(item, false);
+                
+                // Vertical moment (about keel) = weight * height
+                shipState.totalVerticalMoment += item.weight * item.height;
+                
+                // Heeling moment (about centerline) = weight * distance * position
                 shipState.totalHeelingMoment += item.weight * item.distance * item.position;
             });
             
-            // Calculate draft change (simplified)
-            const weightChange = shipState.totalWeight - shipState.shipWeight;
-            const draftChange = (weightChange / (shipState.draftCoeff * 100)); // Convert to meters
-            shipState.currentDraft = shipState.initialDraft + draftChange;
-        }
-
-        // Add item visualization
-        function addItemVisualization(item) {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'item';
-            itemEl.dataset.id = item.id;
-            itemEl.title = `Weight: ${item.weight} tons\nHeight: ${item.height}m\nPosition: ${getPositionName(item.position)}`;
+            // Calculate new KG
+            shipState.currentKG = shipState.totalVerticalMoment / shipState.totalWeight;
             
-            // Position in ship container
-            const containerWidth = shipContainerEl.offsetWidth;
-            const containerHeight = shipContainerEl.offsetHeight;
+            // Calculate GM
+            shipState.currentGM = shipState.KM - shipState.currentKG;
             
-            // Center is at 50%, height is from bottom (keel)
-            const left = 50 + (item.position * item.distance * 100 / shipState.shipWidth);
-            const top = 100 - (item.height * 100 / (shipState.shipKG * 2)); // Scale to fit visualization
+            // Calculate GG1 (horizontal shift of G)
+            shipState.GG1 = shipState.totalHeelingMoment / shipState.totalWeight;
             
-            itemEl.style.left = `${left}%`;
-            itemEl.style.top = `${top}%`;
-            
-            // Size based on weight
-            const size = Math.max(10, Math.min(30, item.weight / 2));
-            itemEl.style.width = `${size}px`;
-            itemEl.style.height = `${size}px`;
-            
-            shipContainerEl.appendChild(itemEl);
-            
-            // Add click to remove
-            itemEl.addEventListener('click', function(e) {
-                e.stopPropagation();
-                removeItem(item.id);
-            });
-        }
-
-        // Add item to the cargo table
-        function addItemToTable(item) {
-            const row = document.createElement('tr');
-            row.dataset.id = item.id;
-            
-            row.innerHTML = `
-                <td>${item.weight}</td>
-                <td>${item.height}</td>
-                <td>${getPositionName(item.position)}</td>
-                <td>${item.distance}</td>
-                <td>
-                    <button class="edit-btn" data-id="${item.id}">Edit</button>
-                    <button class="remove-btn" data-id="${item.id}">Remove</button>
-                </td>
-            `;
-            
-            cargoTableBody.appendChild(row);
-            
-            // Add event listeners to buttons
-            row.querySelector('.edit-btn').addEventListener('click', () => editItem(item.id));
-            row.querySelector('.remove-btn').addEventListener('click', () => removeItem(item.id));
-        }
-
-        // Get position name
-        function getPositionName(position) {
-            return position > 0 ? 'Starboard' : position < 0 ? 'Port' : 'Center';
-        }
-
-        // Remove item from ship
-        function removeItem(itemId) {
-            const index = shipState.items.findIndex(item => item.id == itemId);
-            if (index > -1) {
-                shipState.items.splice(index, 1);
-                
-                // Update totals
-                updateTotals();
-                
-                // Remove from visualization
-                document.querySelector(`.item[data-id="${itemId}"]`)?.remove();
-                
-                // Remove from table
-                document.querySelector(`#cargo-table tr[data-id="${itemId}"]`)?.remove();
-                
-                updateShipVisualization();
+            // Calculate heel angle using GG1/GM
+            if (shipState.currentGM > 0) {
+                shipState.currentHeel = (180/Math.PI) * Math.atan(shipState.GG1 / shipState.currentGM);
+            } else {
+                shipState.currentHeel = 90; // Unstable condition
             }
+            
+            // Update total moments display
+            totalVerticalMomentEl.textContent = shipState.totalVerticalMoment.toFixed(2);
+            totalHeelingMomentEl.textContent = shipState.totalHeelingMoment.toFixed(2);
+            
+            // Color code total moments
+            totalVerticalMomentEl.className = shipState.totalVerticalMoment >= 0 ? 'positive' : 'negative';
+            totalHeelingMomentEl.className = shipState.totalHeelingMoment >= 0 ? 'positive' : 'negative';
         }
 
-        // Edit item
-        function editItem(itemId) {
-            const item = shipState.items.find(item => item.id == itemId);
-            if (!item) return;
+        // Add moment calculation row
+        function addMomentRow(item, isShip) {
+            // Vertical moment (about keel)
+            const verticalMoment = item.weight * item.height;
+            const verticalRow = document.createElement('tr');
+            verticalRow.innerHTML = `
+                <td>${item.pointNumber}${isShip ? ' (Ship)' : ''}</td>
+                <td>${item.weight.toFixed(2)}</td>
+                <td>${item.height.toFixed(2)}</td>
+                <td class="${verticalMoment >= 0 ? 'positive' : 'negative'}">${verticalMoment.toFixed(2)}</td>
+            `;
+            verticalMomentBody.appendChild(verticalRow);
             
-            // Fill the form with item data
-            document.getElementById('item-weight').value = item.weight;
-            document.getElementById('item-height').value = item.height;
-            document.getElementById('item-position').value = item.position;
-            document.getElementById('distance-from-center').value = item.distance;
-            
-            // Remove the item (will be re-added with new values)
-            removeItem(itemId);
+            // Heeling moment (about centerline)
+            if (!isShip || item.distance > 0) {
+                const heelingMoment = item.weight * item.distance * item.position;
+                const heelingRow = document.createElement('tr');
+                heelingRow.innerHTML = `
+                    <td>${item.pointNumber}${isShip ? ' (Ship)' : ''}</td>
+                    <td>${item.weight.toFixed(2)}</td>
+                    <td>${item.position > 0 ? '+' : ''}${(item.distance * item.position).toFixed(2)}</td>
+                    <td class="${heelingMoment >= 0 ? 'positive' : 'negative'}">${heelingMoment.toFixed(2)}</td>
+                `;
+                heelingMomentBody.appendChild(heelingRow);
+            }
         }
 
         // Update ship visualization
         function updateShipVisualization() {
-            // Calculate new KG
-            const newKG = shipState.totalMoment / shipState.totalWeight;
-            
-            // Calculate heel angle (simplified)
-            const GM = shipState.shipBM + (shipState.shipKG - newKG); // BM - KG change
-            const heelAngle = (180/Math.PI) * Math.atan(shipState.totalHeelingMoment / (shipState.totalWeight * GM));
-            
-            // Update display
-            kgValueEl.textContent = newKG.toFixed(2);
-            heelValueEl.textContent = heelAngle.toFixed(2);
+            // Update display values
+            shipWeightValueEl.textContent = shipState.shipWeight;
+            initialKgValueEl.textContent = shipState.initialKG.toFixed(2);
+            kgValueEl.textContent = shipState.currentKG.toFixed(2);
+            kmValueEl.textContent = shipState.KM.toFixed(2);
+            gmValueEl.textContent = shipState.currentGM.toFixed(2);
+            gg1ValueEl.textContent = Math.abs(shipState.GG1).toFixed(4);
             weightValueEl.textContent = shipState.totalWeight.toFixed(0);
-            draftValueEl.textContent = shipState.currentDraft.toFixed(2);
             
-            // Update ship tilt and draft position
-            shipEl.style.transform = `translateX(-50%) rotate(${heelAngle}deg)`;
-            shipEl.style.bottom = `${(shipState.initialDraft - shipState.currentDraft) * 10}px`; // Scale for visualization
+            // Update heel angle display (show absolute value with direction)
+            const absHeel = Math.abs(shipState.currentHeel);
+            heelValueEl.textContent = `${absHeel.toFixed(2)}° ${shipState.currentHeel > 0 ? 'to Port' : shipState.currentHeel < 0 ? 'to Starboard' : ''}`;
             
-            // Update indicators
-            heelIndicatorEl.textContent = `Heel: ${Math.abs(heelAngle).toFixed(1)}° ${heelAngle > 0 ? 'to Starboard' : heelAngle < 0 ? 'to Port' : ''}`;
-            draftIndicatorEl.textContent = `Draft: ${shipState.currentDraft.toFixed(2)}m`;
-            draftIndicatorEl.style.bottom = `${(shipState.currentDraft * 10) + 20}px`; // Position draft text
+            // Update hull rotation (corrected direction)
+            shipHullEl.style.transform = `translateX(-50%) rotate(${-shipState.currentHeel}deg)`;
             
-            // Update KG indicator position
-            const kgIndicator = document.querySelector('.kg-indicator');
-            if (!kgIndicator) {
-                const newIndicator = document.createElement('div');
-                newIndicator.className = 'kg-indicator';
-                shipEl.appendChild(newIndicator);
+            // Update heel indicator
+            heelIndicatorEl.textContent = `Heel: ${absHeel.toFixed(1)}° ${shipState.currentHeel > 0 ? 'to Port' : shipState.currentHeel < 0 ? 'to Starboard' : ''}`;
+            
+            // Update K, M, G points - now always vertically aligned
+            updateStabilityPoints();
+            
+            // Update calculation steps
+            updateCalculationSteps();
+            
+            // Update zoom view
+            updateZoomView();
+        }
+
+        // Update stability points visualization - now always vertically aligned
+        function updateStabilityPoints() {
+            // Clear existing points
+            document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
+            
+            // Point K (Keel - at exact bottom center of hull)
+            const kY = shipState.keelY;
+            const kX = shipState.centerX;
+            createPointMarker('K', kX, kY, 'point-k');
+            
+            // Point M (Metacenter - fixed at KM height)
+            const mY = kY - (shipState.KM * shipState.scaleFactor);
+            const mX = shipState.centerX;
+            createPointMarker('M', mX, mY, 'point-m');
+            
+            // Initial G (Center of Gravity - at initial KG height)
+            const initialGY = kY - (shipState.initialKG * shipState.scaleFactor);
+            const initialGX = shipState.centerX;
+            createPointMarker('G', initialGX, initialGY, 'point-g');
+            
+            // Final G (Center of Gravity - at current KG height and shifted horizontally)
+            const finalGY = kY - (shipState.currentKG * shipState.scaleFactor);
+            const finalGX = shipState.centerX + (shipState.GG1 * shipState.scaleFactor);
+            createPointMarker('G₁', finalGX, finalGY, 'point-g-final');
+            
+            // Draw M-G-K vertical line (always straight up from keel)
+            const mgkLine = document.createElement('div');
+            mgkLine.className = 'mgk-line';
+            mgkLine.style.left = `${kX}px`;
+            mgkLine.style.top = `${kY}px`;
+            mgkLine.style.width = `${(shipState.KM * shipState.scaleFactor)}px`;
+            mgkLine.style.transform = 'rotate(90deg)';
+            shipContainerEl.appendChild(mgkLine);
+            
+            // Only draw triangle and angle if there's heel
+            if (shipState.GG1 !== 0 && shipState.currentGM > 0) {
+                // Draw GG1 line (horizontal)
+                const gg1Line = document.createElement('div');
+                gg1Line.className = 'gg1-line';
+                gg1Line.style.left = `${initialGX}px`;
+                gg1Line.style.top = `${initialGY}px`;
+                gg1Line.style.width = `${Math.abs(shipState.GG1 * shipState.scaleFactor)}px`;
+                gg1Line.style.backgroundColor = '#9b59b6';
+                if (shipState.GG1 < 0) {
+                    gg1Line.style.transform = 'rotate(180deg)';
+                }
+                shipContainerEl.appendChild(gg1Line);
+                
+                // Draw GM line (from G to M)
+                const gmLine = document.createElement('div');
+                gmLine.className = 'gm-line';
+                const gmLength = Math.sqrt(
+                    Math.pow(finalGX - mX, 2) + 
+                    Math.pow(finalGY - mY, 2)
+                );
+                const gmAngle = Math.atan2(finalGY - mY, finalGX - mX) * (180/Math.PI);
+                
+                gmLine.style.left = `${mX}px`;
+                gmLine.style.top = `${mY}px`;
+                gmLine.style.width = `${gmLength}px`;
+                gmLine.style.transform = `rotate(${gmAngle}deg)`;
+                shipContainerEl.appendChild(gmLine);
+                
+                // Draw the right angle triangle
+                const triangle = document.createElement('div');
+                triangle.className = 'stability-triangle';
+                
+                // Position at G point
+                triangle.style.left = `${finalGX}px`;
+                triangle.style.top = `${finalGY}px`;
+                
+                // Create triangle using borders
+                triangle.style.width = '0';
+                triangle.style.height = '0';
+                triangle.style.borderLeft = `${Math.abs(shipState.GG1 * shipState.scaleFactor)}px solid transparent`;
+                triangle.style.borderBottom = `${shipState.currentGM * shipState.scaleFactor}px solid rgba(39, 174, 96, 0.2)`;
+                shipContainerEl.appendChild(triangle);
+                
+                // Add heel angle arc and label
+                if (Math.abs(shipState.currentHeel) > 1) { // Only show if significant heel
+                    const arcSize = 30;
+                    const angleArc = document.createElement('div');
+                    angleArc.className = 'angle-arc';
+                    angleArc.style.left = `${initialGX - arcSize/2}px`;
+                    angleArc.style.top = `${initialGY - arcSize}px`;
+                    angleArc.style.width = `${arcSize}px`;
+                    angleArc.style.height = `${arcSize}px`;
+                    angleArc.style.transform = `rotate(${-shipState.currentHeel}deg)`;
+                    shipContainerEl.appendChild(angleArc);
+                    
+                    const angleLabel = document.createElement('div');
+                    angleLabel.className = 'heel-angle-label';
+                    angleLabel.textContent = `θ = ${Math.abs(shipState.currentHeel).toFixed(1)}°`;
+                    angleLabel.style.left = `${initialGX + 10}px`;
+                    angleLabel.style.top = `${initialGY - arcSize - 10}px`;
+                    shipContainerEl.appendChild(angleLabel);
+                }
             }
             
-            const kgPosition = 100 - (newKG * 100 / (shipState.shipKG * 2)); // Scale to fit visualization
-            document.querySelector('.kg-indicator').style.bottom = `${kgPosition}%`;
+            // Add labels explaining the points
+            const explanation = document.createElement('div');
+            explanation.className = 'point-label';
+            explanation.style.left = '20px';
+            explanation.style.top = '20px';
+            explanation.style.fontSize = '12px';
+            explanation.style.color = '#2c3e50';
+            explanation.innerHTML = `
+                <strong>Key Points:</strong><br>
+                K - Keel (bottom of ship)<br>
+                G - Center of Gravity<br>
+                G₁ - Shifted Center of Gravity<br>
+                M - Metacenter<br>
+                θ - Heel Angle<br>
+                GM - Metacentric Height
+            `;
+            shipContainerEl.appendChild(explanation);
+        }
+
+        // Update zoom view
+        function updateZoomView() {
+            // Clear previous content
+            zoomContentEl.innerHTML = '';
+            
+            // Only show zoom view if there's significant heel
+            if (shipState.GG1 !== 0 && shipState.currentGM > 0 && Math.abs(shipState.currentHeel) > 1) {
+                // Calculate positions relative to G point
+                const kY = shipState.keelY;
+                const mY = kY - (shipState.KM * shipState.scaleFactor);
+                const mX = shipState.centerX;
+                const initialGY = kY - (shipState.initialKG * shipState.scaleFactor);
+                const initialGX = shipState.centerX;
+                const finalGY = kY - (shipState.currentKG * shipState.scaleFactor);
+                const finalGX = shipState.centerX + (shipState.GG1 * shipState.scaleFactor);
+                
+                // Center the view on G point
+                const centerX = 100; // Half of zoom view width
+                const centerY = 100; // Half of zoom view height
+                
+                // Calculate positions relative to center
+                const mRelX = (mX - initialGX) * shipState.zoomScale + centerX;
+                const mRelY = (mY - initialGY) * shipState.zoomScale + centerY;
+                const g1RelX = (finalGX - initialGX) * shipState.zoomScale + centerX;
+                const g1RelY = (finalGY - initialGY) * shipState.zoomScale + centerY;
+                
+                // Create elements for zoom view
+                
+                // Draw M-G line (GM)
+                const gmLine = document.createElement('div');
+                gmLine.className = 'gm-line';
+                const gmLength = Math.sqrt(
+                    Math.pow(g1RelX - mRelX, 2) + 
+                    Math.pow(g1RelY - mRelY, 2)
+                );
+                const gmAngle = Math.atan2(g1RelY - mRelY, g1RelX - mRelX) * (180/Math.PI);
+                
+                gmLine.style.left = `${mRelX}px`;
+                gmLine.style.top = `${mRelY}px`;
+                gmLine.style.width = `${gmLength}px`;
+                gmLine.style.transform = `rotate(${gmAngle}deg)`;
+                zoomContentEl.appendChild(gmLine);
+                
+                // Draw GG1 line (horizontal)
+                const gg1Line = document.createElement('div');
+                gg1Line.className = 'gg1-line';
+                gg1Line.style.left = `${centerX}px`;
+                gg1Line.style.top = `${centerY}px`;
+                gg1Line.style.width = `${Math.abs(shipState.GG1 * shipState.scaleFactor * shipState.zoomScale)}px`;
+                gg1Line.style.backgroundColor = '#9b59b6';
+                if (shipState.GG1 < 0) {
+                    gg1Line.style.transform = 'rotate(180deg)';
+                }
+                zoomContentEl.appendChild(gg1Line);
+                
+                // Draw the right angle triangle
+                const triangle = document.createElement('div');
+                triangle.className = 'stability-triangle';
+                triangle.style.left = `${g1RelX}px`;
+                triangle.style.top = `${g1RelY}px`;
+                triangle.style.width = '0';
+                triangle.style.height = '0';
+                triangle.style.borderLeft = `${Math.abs(shipState.GG1 * shipState.scaleFactor * shipState.zoomScale)}px solid transparent`;
+                triangle.style.borderBottom = `${shipState.currentGM * shipState.scaleFactor * shipState.zoomScale}px solid rgba(39, 174, 96, 0.2)`;
+                zoomContentEl.appendChild(triangle);
+                
+                // Add points
+                createZoomPoint('M', mRelX, mRelY, 'point-m');
+                createZoomPoint('G', centerX, centerY, 'point-g');
+                createZoomPoint('G₁', g1RelX, g1RelY, 'point-g-final');
+                
+                // Add heel angle arc and label
+                const arcSize = 30 * shipState.zoomScale;
+                const angleArc = document.createElement('div');
+                angleArc.className = 'angle-arc';
+                angleArc.style.left = `${centerX - arcSize/2}px`;
+                angleArc.style.top = `${centerY - arcSize}px`;
+                angleArc.style.width = `${arcSize}px`;
+                angleArc.style.height = `${arcSize}px`;
+                angleArc.style.transform = `rotate(${-shipState.currentHeel}deg)`;
+                zoomContentEl.appendChild(angleArc);
+                
+                const angleLabel = document.createElement('div');
+                angleLabel.className = 'heel-angle-label';
+                angleLabel.textContent = `θ = ${Math.abs(shipState.currentHeel).toFixed(1)}°`;
+                angleLabel.style.left = `${centerX + 10}px`;
+                angleLabel.style.top = `${centerY - arcSize - 10}px`;
+                zoomContentEl.appendChild(angleLabel);
+                
+                // Add title
+                const title = document.createElement('div');
+                title.className = 'point-label';
+                title.style.left = '10px';
+                title.style.top = '10px';
+                title.style.fontWeight = 'bold';
+                title.textContent = 'M-G-G₁ Triangle (Zoom)';
+                zoomContentEl.appendChild(title);
+            } else {
+                zoomContentEl.innerHTML = '<div style="padding: 10px; text-align: center;">No significant heel angle to display</div>';
+            }
+        }
+
+        // Create a point marker in zoom view
+        function createZoomPoint(label, x, y, className) {
+            const marker = document.createElement('div');
+            marker.className = `point-marker ${className}`;
+            marker.textContent = '.';
+            marker.style.left = `${x}px`;
+            marker.style.top = `${y}px`;
+            marker.style.fontSize = '20px';
+            zoomContentEl.appendChild(marker);
+            
+            const labelEl = document.createElement('div');
+            labelEl.className = 'point-label';
+            labelEl.textContent = label;
+            labelEl.style.left = `${x + 12}px`;
+            labelEl.style.top = `${y - 12}px`;
+            zoomContentEl.appendChild(labelEl);
+        }
+
+        // Create a point marker with label
+        function createPointMarker(label, x, y, className) {
+            const marker = document.createElement('div');
+            marker.className = `point-marker ${className}`;
+            marker.textContent = '.'; // Simple dot marker
+            marker.style.left = `${x}px`;
+            marker.style.top = `${y}px`;
+            shipContainerEl.appendChild(marker);
+            
+            const labelEl = document.createElement('div');
+            labelEl.className = 'point-label';
+            labelEl.textContent = label;
+            labelEl.style.left = `${x + 15}px`;
+            labelEl.style.top = `${y - 15}px`;
+            shipContainerEl.appendChild(labelEl);
+        }
+
+        // Update calculation steps display
+        function updateCalculationSteps() {
+            let steps = "";
+            
+            steps += `1. Initial Ship Weight: ${shipState.shipWeight} t\n`;
+            steps += `   Initial KG: ${shipState.initialKG} m\n`;
+            steps += `   KM: ${shipState.KM} m\n`;
+            steps += `   Initial GM: ${(shipState.KM - shipState.initialKG).toFixed(2)} m\n\n`;
+            
+            if (shipState.items.length > 0) {
+                steps += `2. Added/Removed Items:\n`;
+                shipState.items.forEach((item, index) => {
+                    steps += `   ${item.pointNumber}) ${item.weight > 0 ? 'Added' : 'Removed'} ${Math.abs(item.weight)} t at ${item.height} m, ${getPositionName(item.position)} ${item.distance} m\n`;
+                });
+                
+                steps += `\n3. Total Weight: ${shipState.totalWeight} t\n`;
+                steps += `   Total Moment about Keel: ${shipState.totalVerticalMoment.toFixed(2)} t·m\n`;
+                steps += `   New KG = Total Moment / Total Weight = ${shipState.currentKG.toFixed(2)} m\n`;
+                steps += `   New GM = KM - KG = ${shipState.KM} - ${shipState.currentKG.toFixed(2)} = ${shipState.currentGM.toFixed(2)} m\n\n`;
+                
+                steps += `4. Heeling Calculation:\n`;
+                steps += `   Total Heeling Moment: ${shipState.totalHeelingMoment.toFixed(2)} t·m\n`;
+                steps += `   GG₁ = Heeling Moment / Total Weight = ${shipState.totalHeelingMoment.toFixed(2)} / ${shipState.totalWeight} = ${shipState.GG1.toFixed(4)} m\n`;
+                steps += `   tan(θ) = GG₁ / GM = ${shipState.GG1.toFixed(4)} / ${shipState.currentGM.toFixed(2)}\n`;
+                steps += `   θ = atan(${(shipState.GG1 / shipState.currentGM).toFixed(4)}) = ${shipState.currentHeel.toFixed(2)}° ${shipState.currentHeel > 0 ? 'to Port' : shipState.currentHeel < 0 ? 'to Starboard' : ''}`;
+            } else {
+                steps += "2. No cargo loaded or removed";
+            }
+            
+            calcStepsEl.textContent = steps;
+        }
+
+        // Get position name
+        function getPositionName(position) {
+            return position > 0 ? 'Port (+ve)' : position < 0 ? 'Starboard (-ve)' : 'Center';
         }
 
         // Reset simulation
         function resetSimulation() {
             updateShipParameters();
+            inputRowsEl.innerHTML = '';
+            addInputRow();
         }
 
         // Initialize on load
