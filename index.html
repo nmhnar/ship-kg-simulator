@@ -54,6 +54,7 @@
             transition: all 0.5s ease;
             background: #3498db;
             border: 2px solid #2980b9;
+            border-bottom: none;
         }
         .port-label, .starboard-label {
             position: absolute;
@@ -197,7 +198,6 @@
             z-index: 5;
             transform-origin: left center;
         }
-        /* New styles for stability visualization */
         .stability-triangle {
             position: absolute;
             pointer-events: none;
@@ -236,13 +236,12 @@
             transform-origin: left center;
             z-index: 3;
         }
-        /* Zoom view styles */
         .zoom-view {
             position: absolute;
             right: 20px;
-            top: 20px;
-            width: 200px;
-            height: 200px;
+            top: 60px;
+            width: 180px;
+            height: 180px;
             border: 2px solid #2c3e50;
             background-color: rgba(255,255,255,0.9);
             z-index: 20;
@@ -417,10 +416,8 @@
             currentHeel: 0,
             itemCounter: 1,
             maxItems: 10,
-            scaleFactor: 15, // pixels per meter
-            keelY: 400, // Y-position of keel in pixels
-            centerX: 250, // X-position of centerline in pixels
-            zoomScale: 2 // Zoom level for the zoom view
+            scaleFactor: 15,
+            zoomScale: 2
         };
 
         // DOM elements
@@ -452,10 +449,9 @@
         // Initialize
         function init() {
             updateShipParameters();
-            addInputRow(); // Add first empty row
+            addInputRow();
             updateShipVisualization();
             
-            // Update calculations when ship parameters change
             document.getElementById('ship-weight').addEventListener('change', updateShipParameters);
             document.getElementById('ship-kg').addEventListener('change', updateShipParameters);
             document.getElementById('ship-km').addEventListener('change', updateShipParameters);
@@ -464,7 +460,6 @@
             calculateBtn.addEventListener('click', calculateStability);
             resetBtn.addEventListener('click', resetSimulation);
             
-            // Zoom controls
             zoomInBtn.addEventListener('click', () => {
                 shipState.zoomScale *= 1.2;
                 updateZoomView();
@@ -495,7 +490,6 @@
             
             inputRowsEl.appendChild(row);
             
-            // Add event listener to remove button
             row.querySelector('.remove-row-btn').addEventListener('click', function() {
                 row.remove();
             });
@@ -503,14 +497,12 @@
 
         // Calculate stability from input rows
         function calculateStability() {
-            // Clear existing items
             shipState.items = [];
             document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
             verticalMomentBody.innerHTML = '';
             heelingMomentBody.innerHTML = '';
             shipState.itemCounter = 1;
             
-            // Process each input row
             const rows = inputRowsEl.querySelectorAll('tr');
             rows.forEach(row => {
                 const weight = parseFloat(row.querySelector('.input-weight').value);
@@ -531,7 +523,6 @@
                 }
             });
             
-            // Update totals and visualization
             updateTotals();
             updateShipVisualization();
         }
@@ -542,7 +533,6 @@
             shipState.initialKG = parseFloat(document.getElementById('ship-kg').value) || 7.6;
             shipState.KM = parseFloat(document.getElementById('ship-km').value) || 8.7;
             
-            // Reset totals
             shipState.totalWeight = shipState.shipWeight;
             shipState.totalVerticalMoment = shipState.shipWeight * shipState.initialKG;
             shipState.totalHeelingMoment = 0;
@@ -553,12 +543,10 @@
             shipState.currentHeel = 0;
             shipState.itemCounter = 1;
             
-            // Clear all items from visualization and table
             document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
             verticalMomentBody.innerHTML = '';
             heelingMomentBody.innerHTML = '';
             
-            // Add ship row to moment tables
             addMomentRow({
                 pointNumber: "Ship",
                 weight: shipState.shipWeight,
@@ -576,51 +564,33 @@
             shipState.totalVerticalMoment = shipState.shipWeight * shipState.initialKG;
             shipState.totalHeelingMoment = 0;
             
-            // Clear moment tables
             heelingMomentBody.innerHTML = '';
             
-            // Process each item
             shipState.items.forEach(item => {
                 shipState.totalWeight += item.weight;
-                
-                // Add to moment tables
                 addMomentRow(item, false);
-                
-                // Vertical moment (about keel) = weight * height
                 shipState.totalVerticalMoment += item.weight * item.height;
-                
-                // Heeling moment (about centerline) = weight * distance * position
                 shipState.totalHeelingMoment += item.weight * item.distance * item.position;
             });
             
-            // Calculate new KG
             shipState.currentKG = shipState.totalVerticalMoment / shipState.totalWeight;
-            
-            // Calculate GM
             shipState.currentGM = shipState.KM - shipState.currentKG;
-            
-            // Calculate GG1 (horizontal shift of G)
             shipState.GG1 = shipState.totalHeelingMoment / shipState.totalWeight;
             
-            // Calculate heel angle using GG1/GM
             if (shipState.currentGM > 0) {
                 shipState.currentHeel = (180/Math.PI) * Math.atan(shipState.GG1 / shipState.currentGM);
             } else {
-                shipState.currentHeel = 90; // Unstable condition
+                shipState.currentHeel = 90;
             }
             
-            // Update total moments display
             totalVerticalMomentEl.textContent = shipState.totalVerticalMoment.toFixed(2);
             totalHeelingMomentEl.textContent = shipState.totalHeelingMoment.toFixed(2);
-            
-            // Color code total moments
             totalVerticalMomentEl.className = shipState.totalVerticalMoment >= 0 ? 'positive' : 'negative';
             totalHeelingMomentEl.className = shipState.totalHeelingMoment >= 0 ? 'positive' : 'negative';
         }
 
         // Add moment calculation row
         function addMomentRow(item, isShip) {
-            // Vertical moment (about keel)
             const verticalMoment = item.weight * item.height;
             const verticalRow = document.createElement('tr');
             verticalRow.innerHTML = `
@@ -631,7 +601,6 @@
             `;
             verticalMomentBody.appendChild(verticalRow);
             
-            // Heeling moment (about centerline)
             if (!isShip || item.distance > 0) {
                 const heelingMoment = item.weight * item.distance * item.position;
                 const heelingRow = document.createElement('tr');
@@ -647,7 +616,6 @@
 
         // Update ship visualization
         function updateShipVisualization() {
-            // Update display values
             shipWeightValueEl.textContent = shipState.shipWeight;
             initialKgValueEl.textContent = shipState.initialKG.toFixed(2);
             kgValueEl.textContent = shipState.currentKG.toFixed(2);
@@ -656,61 +624,56 @@
             gg1ValueEl.textContent = Math.abs(shipState.GG1).toFixed(4);
             weightValueEl.textContent = shipState.totalWeight.toFixed(0);
             
-            // Update heel angle display (show absolute value with direction)
             const absHeel = Math.abs(shipState.currentHeel);
             heelValueEl.textContent = `${absHeel.toFixed(2)}° ${shipState.currentHeel > 0 ? 'to Port' : shipState.currentHeel < 0 ? 'to Starboard' : ''}`;
             
-            // Update hull rotation (corrected direction)
             shipHullEl.style.transform = `translateX(-50%) rotate(${-shipState.currentHeel}deg)`;
-            
-            // Update heel indicator
             heelIndicatorEl.textContent = `Heel: ${absHeel.toFixed(1)}° ${shipState.currentHeel > 0 ? 'to Port' : shipState.currentHeel < 0 ? 'to Starboard' : ''}`;
             
-            // Update K, M, G points - now always vertically aligned
             updateStabilityPoints();
-            
-            // Update calculation steps
             updateCalculationSteps();
-            
-            // Update zoom view
             updateZoomView();
         }
 
-        // Update stability points visualization - now always vertically aligned
+        // Update stability points visualization with proper alignment
         function updateStabilityPoints() {
-            // Clear existing points
             document.querySelectorAll('.point-marker, .point-label, .gg1-line, .stability-triangle, .mgk-line, .heel-angle-label, .angle-arc, .gm-line').forEach(el => el.remove());
             
-            // Point K (Keel - at exact bottom center of hull)
-            const kY = shipState.keelY;
-            const kX = shipState.centerX;
+            // Get hull position and dimensions
+            const hullRect = shipHullEl.getBoundingClientRect();
+            const containerRect = shipContainerEl.getBoundingClientRect();
+            
+            // Calculate K point position (bottom center of hull)
+            const kX = hullRect.left + hullRect.width/2 - containerRect.left;
+            const kY = hullRect.bottom - containerRect.top;
+            
+            // Point K (Keel) - fixed at bottom center of hull
             createPointMarker('K', kX, kY, 'point-k');
             
-            // Point M (Metacenter - fixed at KM height)
-            const mY = kY - (shipState.KM * shipState.scaleFactor);
-            const mX = shipState.centerX;
-            createPointMarker('M', mX, mY, 'point-m');
-            
-            // Initial G (Center of Gravity - at initial KG height)
+            // Initial G (Center of Gravity) - at initial KG height above K
             const initialGY = kY - (shipState.initialKG * shipState.scaleFactor);
-            const initialGX = shipState.centerX;
+            const initialGX = kX;
             createPointMarker('G', initialGX, initialGY, 'point-g');
             
-            // Final G (Center of Gravity - at current KG height and shifted horizontally)
-            const finalGY = kY - (shipState.currentKG * shipState.scaleFactor);
-            const finalGX = shipState.centerX + (shipState.GG1 * shipState.scaleFactor);
+            // Point M (Metacenter) - fixed at KM height above K (vertically above K)
+            const mY = kY - (shipState.KM * shipState.scaleFactor);
+            const mX = kX;
+            createPointMarker('M', mX, mY, 'point-m');
+            
+            // Final G (Center of Gravity) - shifted horizontally from initial G
+            const finalGY = initialGY;
+            const finalGX = initialGX + (shipState.GG1 * shipState.scaleFactor);
             createPointMarker('G₁', finalGX, finalGY, 'point-g-final');
             
-            // Draw M-G-K vertical line (always straight up from keel)
-            const mgkLine = document.createElement('div');
-            mgkLine.className = 'mgk-line';
-            mgkLine.style.left = `${kX}px`;
-            mgkLine.style.top = `${kY}px`;
-            mgkLine.style.width = `${(shipState.KM * shipState.scaleFactor)}px`;
-            mgkLine.style.transform = 'rotate(90deg)';
-            shipContainerEl.appendChild(mgkLine);
+            // Draw M-K vertical line (always straight up from keel)
+            const mkLine = document.createElement('div');
+            mkLine.className = 'mgk-line';
+            mkLine.style.left = `${kX}px`;
+            mkLine.style.top = `${kY}px`;
+            mkLine.style.width = `${(shipState.KM * shipState.scaleFactor)}px`;
+            mkLine.style.transform = 'rotate(90deg)';
+            shipContainerEl.appendChild(mkLine);
             
-            // Only draw triangle and angle if there's heel
             if (shipState.GG1 !== 0 && shipState.currentGM > 0) {
                 // Draw GG1 line (horizontal)
                 const gg1Line = document.createElement('div');
@@ -724,58 +687,44 @@
                 }
                 shipContainerEl.appendChild(gg1Line);
                 
-                // Draw GM line (from G to M)
-                const gmLine = document.createElement('div');
-                gmLine.className = 'gm-line';
-                const gmLength = Math.sqrt(
+                // Draw M-G line (from M to final G)
+                const mgLine = document.createElement('div');
+                mgLine.className = 'gm-line';
+                const mgLength = Math.sqrt(
                     Math.pow(finalGX - mX, 2) + 
                     Math.pow(finalGY - mY, 2)
                 );
-                const gmAngle = Math.atan2(finalGY - mY, finalGX - mX) * (180/Math.PI);
+                const mgAngle = Math.atan2(finalGY - mY, finalGX - mX) * (180/Math.PI);
                 
-                gmLine.style.left = `${mX}px`;
-                gmLine.style.top = `${mY}px`;
-                gmLine.style.width = `${gmLength}px`;
-                gmLine.style.transform = `rotate(${gmAngle}deg)`;
-                shipContainerEl.appendChild(gmLine);
+                mgLine.style.left = `${mX}px`;
+                mgLine.style.top = `${mY}px`;
+                mgLine.style.width = `${mgLength}px`;
+                mgLine.style.transform = `rotate(${mgAngle}deg)`;
+                shipContainerEl.appendChild(mgLine);
                 
-                // Draw the right angle triangle
-                const triangle = document.createElement('div');
-                triangle.className = 'stability-triangle';
-                
-                // Position at G point
-                triangle.style.left = `${finalGX}px`;
-                triangle.style.top = `${finalGY}px`;
-                
-                // Create triangle using borders
-                triangle.style.width = '0';
-                triangle.style.height = '0';
-                triangle.style.borderLeft = `${Math.abs(shipState.GG1 * shipState.scaleFactor)}px solid transparent`;
-                triangle.style.borderBottom = `${shipState.currentGM * shipState.scaleFactor}px solid rgba(39, 174, 96, 0.2)`;
-                shipContainerEl.appendChild(triangle);
-                
-                // Add heel angle arc and label
-                if (Math.abs(shipState.currentHeel) > 1) { // Only show if significant heel
+                // Draw the angle between vertical M-K and M-G
+                if (Math.abs(shipState.currentHeel) > 1) {
                     const arcSize = 30;
                     const angleArc = document.createElement('div');
                     angleArc.className = 'angle-arc';
-                    angleArc.style.left = `${initialGX - arcSize/2}px`;
-                    angleArc.style.top = `${initialGY - arcSize}px`;
+                    angleArc.style.left = `${mX - arcSize/2}px`;
+                    angleArc.style.top = `${mY}px`;
                     angleArc.style.width = `${arcSize}px`;
                     angleArc.style.height = `${arcSize}px`;
-                    angleArc.style.transform = `rotate(${-shipState.currentHeel}deg)`;
+                    angleArc.style.transform = `rotate(${-90}deg)`;
+                    angleArc.style.borderRightColor = 'transparent';
+                    angleArc.style.borderBottomColor = 'transparent';
                     shipContainerEl.appendChild(angleArc);
                     
                     const angleLabel = document.createElement('div');
                     angleLabel.className = 'heel-angle-label';
                     angleLabel.textContent = `θ = ${Math.abs(shipState.currentHeel).toFixed(1)}°`;
-                    angleLabel.style.left = `${initialGX + 10}px`;
-                    angleLabel.style.top = `${initialGY - arcSize - 10}px`;
+                    angleLabel.style.left = `${mX + 10}px`;
+                    angleLabel.style.top = `${mY + arcSize/2}px`;
                     shipContainerEl.appendChild(angleLabel);
                 }
             }
             
-            // Add labels explaining the points
             const explanation = document.createElement('div');
             explanation.className = 'point-label';
             explanation.style.left = '20px';
@@ -794,54 +743,67 @@
             shipContainerEl.appendChild(explanation);
         }
 
-        // Update zoom view
+        // Update zoom view with proper alignment
         function updateZoomView() {
-            // Clear previous content
             zoomContentEl.innerHTML = '';
             
-            // Only show zoom view if there's significant heel
             if (shipState.GG1 !== 0 && shipState.currentGM > 0 && Math.abs(shipState.currentHeel) > 1) {
-                // Calculate positions relative to G point
-                const kY = shipState.keelY;
-                const mY = kY - (shipState.KM * shipState.scaleFactor);
-                const mX = shipState.centerX;
-                const initialGY = kY - (shipState.initialKG * shipState.scaleFactor);
-                const initialGX = shipState.centerX;
-                const finalGY = kY - (shipState.currentKG * shipState.scaleFactor);
-                const finalGX = shipState.centerX + (shipState.GG1 * shipState.scaleFactor);
+                const hullRect = shipHullEl.getBoundingClientRect();
+                const containerRect = shipContainerEl.getBoundingClientRect();
+                const kX = hullRect.left + hullRect.width/2 - containerRect.left;
+                const kY = hullRect.bottom - containerRect.top;
                 
-                // Center the view on G point
-                const centerX = 100; // Half of zoom view width
-                const centerY = 100; // Half of zoom view height
+                // Initial G position
+                const initialGY = kY - (shipState.initialKG * shipState.scaleFactor);
+                const initialGX = kX;
+                
+                // M position (vertically above K)
+                const mY = kY - (shipState.KM * shipState.scaleFactor);
+                const mX = kX;
+                
+                // Final G position (same height as initial G, shifted horizontally)
+                const finalGY = initialGY;
+                const finalGX = initialGX + (shipState.GG1 * shipState.scaleFactor);
+                
+                // Center the view on M point
+                const centerX = 90;
+                const centerY = 90;
                 
                 // Calculate positions relative to center
-                const mRelX = (mX - initialGX) * shipState.zoomScale + centerX;
-                const mRelY = (mY - initialGY) * shipState.zoomScale + centerY;
-                const g1RelX = (finalGX - initialGX) * shipState.zoomScale + centerX;
-                const g1RelY = (finalGY - initialGY) * shipState.zoomScale + centerY;
+                const gRelX = (initialGX - mX) * shipState.zoomScale + centerX;
+                const gRelY = (initialGY - mY) * shipState.zoomScale + centerY;
+                const g1RelX = (finalGX - mX) * shipState.zoomScale + centerX;
+                const g1RelY = (finalGY - mY) * shipState.zoomScale + centerY;
                 
-                // Create elements for zoom view
+                // Draw M-G₁ vertical line (always vertical)
+                const mg1Line = document.createElement('div');
+                mg1Line.className = 'mgk-line';
+                mg1Line.style.left = `${centerX}px`;
+                mg1Line.style.top = `${centerY}px`;
+                mg1Line.style.width = `${(shipState.KM - shipState.currentKG) * shipState.scaleFactor * shipState.zoomScale}px`;
+                mg1Line.style.transform = 'rotate(90deg)';
+                zoomContentEl.appendChild(mg1Line);
                 
-                // Draw M-G line (GM)
-                const gmLine = document.createElement('div');
-                gmLine.className = 'gm-line';
-                const gmLength = Math.sqrt(
-                    Math.pow(g1RelX - mRelX, 2) + 
-                    Math.pow(g1RelY - mRelY, 2)
+                // Draw M-G line (showing heel angle)
+                const mgLine = document.createElement('div');
+                mgLine.className = 'gm-line';
+                const mgLength = Math.sqrt(
+                    Math.pow(gRelX - centerX, 2) + 
+                    Math.pow(gRelY - centerY, 2)
                 );
-                const gmAngle = Math.atan2(g1RelY - mRelY, g1RelX - mRelX) * (180/Math.PI);
+                const mgAngle = Math.atan2(gRelY - centerY, gRelX - centerX) * (180/Math.PI);
                 
-                gmLine.style.left = `${mRelX}px`;
-                gmLine.style.top = `${mRelY}px`;
-                gmLine.style.width = `${gmLength}px`;
-                gmLine.style.transform = `rotate(${gmAngle}deg)`;
-                zoomContentEl.appendChild(gmLine);
+                mgLine.style.left = `${centerX}px`;
+                mgLine.style.top = `${centerY}px`;
+                mgLine.style.width = `${mgLength}px`;
+                mgLine.style.transform = `rotate(${mgAngle}deg)`;
+                zoomContentEl.appendChild(mgLine);
                 
                 // Draw GG1 line (horizontal)
                 const gg1Line = document.createElement('div');
                 gg1Line.className = 'gg1-line';
                 gg1Line.style.left = `${centerX}px`;
-                gg1Line.style.top = `${centerY}px`;
+                gg1Line.style.top = `${g1RelY}px`;
                 gg1Line.style.width = `${Math.abs(shipState.GG1 * shipState.scaleFactor * shipState.zoomScale)}px`;
                 gg1Line.style.backgroundColor = '#9b59b6';
                 if (shipState.GG1 < 0) {
@@ -849,38 +811,29 @@
                 }
                 zoomContentEl.appendChild(gg1Line);
                 
-                // Draw the right angle triangle
-                const triangle = document.createElement('div');
-                triangle.className = 'stability-triangle';
-                triangle.style.left = `${g1RelX}px`;
-                triangle.style.top = `${g1RelY}px`;
-                triangle.style.width = '0';
-                triangle.style.height = '0';
-                triangle.style.borderLeft = `${Math.abs(shipState.GG1 * shipState.scaleFactor * shipState.zoomScale)}px solid transparent`;
-                triangle.style.borderBottom = `${shipState.currentGM * shipState.scaleFactor * shipState.zoomScale}px solid rgba(39, 174, 96, 0.2)`;
-                zoomContentEl.appendChild(triangle);
-                
                 // Add points
-                createZoomPoint('M', mRelX, mRelY, 'point-m');
-                createZoomPoint('G', centerX, centerY, 'point-g');
+                createZoomPoint('M', centerX, centerY, 'point-m');
+                createZoomPoint('G', gRelX, gRelY, 'point-g');
                 createZoomPoint('G₁', g1RelX, g1RelY, 'point-g-final');
                 
                 // Add heel angle arc and label
-                const arcSize = 30 * shipState.zoomScale;
+                const arcSize = 25 * shipState.zoomScale;
                 const angleArc = document.createElement('div');
                 angleArc.className = 'angle-arc';
                 angleArc.style.left = `${centerX - arcSize/2}px`;
-                angleArc.style.top = `${centerY - arcSize}px`;
+                angleArc.style.top = `${centerY}px`;
                 angleArc.style.width = `${arcSize}px`;
                 angleArc.style.height = `${arcSize}px`;
-                angleArc.style.transform = `rotate(${-shipState.currentHeel}deg)`;
+                angleArc.style.transform = `rotate(${-90}deg)`;
+                angleArc.style.borderRightColor = 'transparent';
+                angleArc.style.borderBottomColor = 'transparent';
                 zoomContentEl.appendChild(angleArc);
                 
                 const angleLabel = document.createElement('div');
                 angleLabel.className = 'heel-angle-label';
                 angleLabel.textContent = `θ = ${Math.abs(shipState.currentHeel).toFixed(1)}°`;
                 angleLabel.style.left = `${centerX + 10}px`;
-                angleLabel.style.top = `${centerY - arcSize - 10}px`;
+                angleLabel.style.top = `${centerY + arcSize/2}px`;
                 zoomContentEl.appendChild(angleLabel);
                 
                 // Add title
@@ -889,7 +842,7 @@
                 title.style.left = '10px';
                 title.style.top = '10px';
                 title.style.fontWeight = 'bold';
-                title.textContent = 'M-G-G₁ Triangle (Zoom)';
+                title.textContent = 'Stability Triangle (M-G-G₁)';
                 zoomContentEl.appendChild(title);
             } else {
                 zoomContentEl.innerHTML = '<div style="padding: 10px; text-align: center;">No significant heel angle to display</div>';
@@ -918,7 +871,7 @@
         function createPointMarker(label, x, y, className) {
             const marker = document.createElement('div');
             marker.className = `point-marker ${className}`;
-            marker.textContent = '.'; // Simple dot marker
+            marker.textContent = '.';
             marker.style.left = `${x}px`;
             marker.style.top = `${y}px`;
             shipContainerEl.appendChild(marker);
